@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Video Summarizer - AI Powered</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e22ce 100%);
+            min-height: 100vh;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3), transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(138, 43, 226, 0.3), transparent 50%);
+            pointer-events: none;
+        }
+
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 50px;
+            animation: fadeInDown 0.8s ease;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 15px;
+            text-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            font-weight: 700;
+            letter-spacing: -1px;
+        }
+
+        .header .subtitle {
+            font-size: 1.2em;
+            opacity: 0.95;
+            font-weight: 300;
+        }
+
+        .header .badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            margin-top: 15px;
+            font-size: 0.9em;
+            backdrop-filter: blur(10px);
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            animation: fadeInUp 0.8s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .input-section {
+            margin-bottom: 25px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 18px 20px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s;
+            background: white;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #7e22ce;
+            box-shadow: 0 0 0 4px rgba(126, 34, 206, 0.1);
+        }
+
+        button {
+            padding: 18px 35px;
+            background: linear-gradient(135deg, #7e22ce 0%, #1e3c72 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(126, 34, 206, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(126, 34, 206, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .examples {
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 12px;
+        }
+
+        .examples a {
+            color: #7e22ce;
+            text-decoration: none;
+            margin-right: 20px;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .examples a:hover {
+            color: #1e3c72;
+            text-decoration: underline;
+        }
+
+        .progress-tracker {
+            display: none;
+            margin: 30px 0;
+        }
+
+        .progress-tracker.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .progress-line {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: #e5e7eb;
+            z-index: 0;
+        }
+
+        .progress-line-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #7e22ce, #1e3c72);
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 2px;
+        }
+
+        .step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: white;
+            border: 4px solid #e5e7eb;
+            margin: 0 auto 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #9ca3af;
+            transition: all 0.3s;
+        }
+
+        .step.active .step-circle {
+            border-color: #7e22ce;
+            color: #7e22ce;
+            box-shadow: 0 0 0 4px rgba(126, 34, 206, 0.1);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .step.completed .step-circle {
+            background: linear-gradient(135deg, #7e22ce, #1e3c72);
+            border-color: #7e22ce;
+            color: white;
+        }
+
+        .step.completed .step-circle::before {
+            content: '✓';
+        }
+
+        .step-label {
+            font-size: 13px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .step.active .step-label {
+            color: #7e22ce;
+            font-weight: 600;
+        }
+
+        .step.completed .step-label {
+            color: #1e3c72;
+        }
+
+        .live-logs {
+            background: #1f2937;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .log-entry {
+            color: #10b981;
+            margin: 8px 0;
+            opacity: 0;
+            animation: logFadeIn 0.3s ease forwards;
+        }
+
+        @keyframes logFadeIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .log-entry.info { color: #60a5fa; }
+        .log-entry.success { color: #10b981; }
+        .log-entry.warning { color: #fbbf24; }
+        .log-entry.error { color: #ef4444; }
+
+        .log-timestamp {
+            color: #6b7280;
+            margin-right: 8px;
+        }
+
+        .spinner {
+            border: 3px solid rgba(126, 34, 206, 0.1);
+            border-top: 3px solid #7e22ce;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            display: none;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .results.active {
+            display: block;
+        }
+
+        .video-info {
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            padding: 25px;
+            border-radius: 16px;
+            margin-bottom: 25px;
+            border-left: 5px solid #7e22ce;
+        }
+
+        .video-info h3 {
+            color: #1f2937;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+
+        .video-info p {
+            color: #4b5563;
+            margin: 8px 0;
+            font-size: 14px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #7e22ce 0%, #1e3c72 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 8px 16px rgba(126, 34, 206, 0.2);
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card .number {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .label {
+            font-size: 0.95em;
+            opacity: 0.95;
+            font-weight: 500;
+        }
+
+        .section {
+            margin-bottom: 35px;
+        }
+
+        .section h3 {
+            color: #1f2937;
+            margin-bottom: 18px;
+            font-size: 1.6em;
+            border-bottom: 3px solid #7e22ce;
+            padding-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .text-content {
+            background: #f9fafb;
+            padding: 25px;
+            border-radius: 12px;
+            line-height: 1.9;
+            color: #374151;
+            max-height: 450px;
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+        }
+
+        .text-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .text-content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .text-content::-webkit-scrollbar-thumb {
+            background: #7e22ce;
+            border-radius: 4px;
+        }
+
+        .copy-btn {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            padding: 10px 20px;
+            font-size: 14px;
+            margin-top: 12px;
+            box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+        }
+
+        .copy-btn:hover {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        }
+
+        .error {
+            background: #fef2f2;
+            color: #dc2626;
+            padding: 18px;
+            border-radius: 12px;
+            border-left: 5px solid #dc2626;
+            display: none;
+            margin-bottom: 20px;
+            animation: shake 0.5s ease;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .error.active {
+            display: block;
+        }
+
+        .warning {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 18px;
+            border-radius: 12px;
+            border-left: 5px solid #f59e0b;
+            display: none;
+            margin-bottom: 20px;
+        }
+
+        .warning.active {
+            display: block;
+        }
+
+        .url-validation {
+            display: none;
+            margin-top: 10px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .url-validation.valid {
+            display: block;
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+
+        .url-validation.invalid {
+            display: block;
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #dc2626;
+        }
+
+        .footer {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.9);
+            margin-top: 50px;
+            font-size: 14px;
+        }
+
+        .footer p {
+            margin: 8px 0;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .input-group {
+                flex-direction: column;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+
+            .progress-steps {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .progress-line {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 YouTube Video Summarizer</h1>
+            <p class="subtitle">AI-Powered Speech Recognition & Intelligent Summarization</p>
+            <div class="badge">🔒 100% Offline Processing</div>
+        </div>
+
+        <div class="card">
+            <div class="input-section">
+                <div class="input-group">
+                    <input 
+                        type="text" 
+                        id="youtubeUrl" 
+                        placeholder="Paste YouTube URL here (e.g., https://www.youtube.com/watch?v=...)"
+                        autocomplete="off"
+                    >
+                    <button id="summarizeBtn" onclick="summarizeVideo()">
+                        🚀 Analyze Video
+                    </button>
+                    <button id="stopBtn" onclick="stopProcessing()" style="display: none; background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);">
+                        ⏹️ Stop
+                    </button>
+                </div>
+                <div class="examples">
+                    <strong>✨ Quick Test:</strong>
+                    <a href="#" onclick="fillExample('https://www.youtube.com/watch?v=dQw4w9WgXcQ'); return false;">Short Video</a>
+                    <a href="#" onclick="fillExample('https://www.youtube.com/watch?v=UF8uR6Z6KLc'); return false;">🎤 TED Talk</a>
+                </div>
+                <div class="url-validation" id="urlValidation"></div>
+            </div>
+
+            <div class="warning" id="warningMessage"></div>
+
+            <div class="error" id="errorMessage"></div>
+
+            <div class="progress-tracker" id="progressTracker">
+                <div class="progress-steps">
+                    <div class="progress-line">
+                        <div class="progress-line-fill" id="progressFill"></div>
+                    </div>
+                    <div class="step" id="step1">
+                        <div class="step-circle">1</div>
+                        <div class="step-label">Download Audio</div>
+                    </div>
+                    <div class="step" id="step2">
+                        <div class="step-circle">2</div>
+                        <div class="step-label">Transcribe Speech</div>
+                    </div>
+                    <div class="step" id="step3">
+                        <div class="step-circle">3</div>
+                        <div class="step-label">Generate Summary</div>
+                    </div>
+                </div>
+
+                <div class="live-logs" id="liveLogs"></div>
+            </div>
+
+            <div class="results" id="resultsSection">
+                <div class="video-info" id="videoInfo"></div>
+
+                <div class="stats" id="statsSection"></div>
+
+                <div class="section">
+                    <h3>📝 AI-Generated Summary</h3>
+                    <div class="text-content" id="summaryText"></div>
+                    <button class="copy-btn" onclick="copyToClipboard('summaryText')">📋 Copy Summary</button>
+                </div>
+
+                <div class="section">
+                    <h3>📄 Complete Transcript</h3>
+                    <div class="text-content" id="transcriptText"></div>
+                    <button class="copy-btn" onclick="copyToClipboard('transcriptText')">📋 Copy Transcript</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>⚡ Powered by Whisper (OpenAI) & BART (Facebook AI)</p>
+            <p>🔐 Your data stays on your machine - No cloud processing</p>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 0;
+        let isProcessing = false;
+        let shouldStop = false;
+
+        // URL validation function
+        function validateYouTubeUrl(url) {
+            const patterns = [
+                /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/,
+                /^(https?:\/\/)?(www\.)?youtube\.com\/watch\?v=[\w-]+/,
+                /^(https?:\/\/)?(www\.)?youtu\.be\/[\w-]+/
+            ];
+            return patterns.some(pattern => pattern.test(url));
+        }
+
+        // Real-time URL validation
+        document.getElementById('youtubeUrl').addEventListener('input', function(e) {
+            const url = e.target.value.trim();
+            const validation = document.getElementById('urlValidation');
+            
+            if (url.length === 0) {
+                validation.className = 'url-validation';
+                return;
+            }
+            
+            if (validateYouTubeUrl(url)) {
+                validation.className = 'url-validation valid';
+                validation.innerHTML = '✅ Valid YouTube URL';
+            } else {
+                validation.className = 'url-validation invalid';
+                validation.innerHTML = '❌ Invalid YouTube URL. Please use format: https://www.youtube.com/watch?v=...';
+            }
+        });
+
+        function fillExample(url) {
+            document.getElementById('youtubeUrl').value = url;
+        }
+
+        function addLog(message, type = 'info') {
+            const logsContainer = document.getElementById('liveLogs');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            logEntry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span>${message}`;
+            
+            logsContainer.appendChild(logEntry);
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+        }
+
+        function updateProgressStep(stepNumber) {
+            currentStep = stepNumber;
+            
+            // Update steps
+            for (let i = 1; i <= 3; i++) {
+                const step = document.getElementById(`step${i}`);
+                step.classList.remove('active', 'completed');
+                
+                if (i < stepNumber) {
+                    step.classList.add('completed');
+                } else if (i === stepNumber) {
+                    step.classList.add('active');
+                }
+            }
+            
+            // Update progress bar
+            const progressFill = document.getElementById('progressFill');
+            const percentage = ((stepNumber - 1) / 2) * 100;
+            progressFill.style.width = `${percentage}%`;
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = '❌ ' + message;
+            errorDiv.classList.add('active');
+            setTimeout(() => errorDiv.classList.remove('active'), 7000);
+            addLog(`Error: ${message}`, 'error');
+        }
+
+        function showWarning(message) {
+            const warningDiv = document.getElementById('warningMessage');
+            warningDiv.textContent = '⚠️  ' + message;
+            warningDiv.classList.add('active');
+            setTimeout(() => warningDiv.classList.remove('active'), 5000);
+            addLog(`Warning: ${message}`, 'warning');
+        }
+
+        function stopProcessing() {
+            shouldStop = true;
+            isProcessing = false;
+            
+            addLog('🛑 Stop requested by user', 'warning');
+            addLog('⏹️  Stopping process...', 'warning');
+            
+            // Reset UI
+            document.getElementById('summarizeBtn').disabled = false;
+            document.getElementById('summarizeBtn').style.display = 'inline-block';
+            document.getElementById('stopBtn').style.display = 'none';
+            
+            setTimeout(() => {
+                document.getElementById('progressTracker').classList.remove('active');
+                addLog('✅ Process stopped. Ready for new video.', 'info');
+                showWarning('Processing stopped. You can start with a new video.');
+            }, 500);
+        }
+
+        function resetUI() {
+            document.getElementById('resultsSection').classList.remove('active');
+            document.getElementById('errorMessage').classList.remove('active');
+            document.getElementById('warningMessage').classList.remove('active');
+            document.getElementById('liveLogs').innerHTML = '';
+            document.getElementById('urlValidation').className = 'url-validation';
+            currentStep = 0;
+            shouldStop = false;
+        }
+
+        async function summarizeVideo() {
+            const urlInput = document.getElementById('youtubeUrl');
+            const url = urlInput.value.trim();
+
+            // Validation checks
+            if (!url) {
+                showError('Please enter a YouTube URL');
+                return;
+            }
+
+            if (!validateYouTubeUrl(url)) {
+                showError('Invalid YouTube URL format. Please use: https://www.youtube.com/watch?v=...');
+                return;
+            }
+
+            if (isProcessing) {
+                showWarning('Already processing a video. Please wait or click Stop.');
+                return;
+            }
+
+            // Reset UI
+            resetUI();
+            isProcessing = true;
+            shouldStop = false;
+
+            // Show progress tracker and stop button
+            const progressTracker = document.getElementById('progressTracker');
+            const summarizeBtn = document.getElementById('summarizeBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            
+            progressTracker.classList.add('active');
+            summarizeBtn.disabled = true;
+            summarizeBtn.style.display = 'none';
+            stopBtn.style.display = 'inline-block';
+
+            // Check video length warning
+            addLog('🔍 Validating YouTube URL...', 'info');
+            
+            setTimeout(() => {
+                if (shouldStop) return;
+                addLog('✅ URL validation passed', 'success');
+            }, 300);
+
+            // Simulate real-time progress updates
+            updateProgressStep(1);
+            addLog('🎬 Initializing video download...', 'info');
+            addLog(`📺 Processing URL: ${url.substring(0, 50)}...`, 'info');
+
+            try {
+                // Check for stop
+                if (shouldStop) {
+                    addLog('🛑 Process cancelled', 'warning');
+                    return;
+                }
+
+                // Step 1: Download
+                addLog('⬇️  Extracting audio from YouTube...', 'info');
+                
+                setTimeout(() => {
+                    if (shouldStop) return;
+                    updateProgressStep(2);
+                    addLog('✅ Audio download complete!', 'success');
+                    addLog('🎤 Starting speech-to-text transcription...', 'info');
+                    addLog('⚙️  Loading Whisper AI model...', 'info');
+                }, 1000);
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => {
+                    if (!shouldStop) {
+                        showWarning('This is taking longer than usual. Processing long videos...');
+                        addLog('⏱️  Long video detected. This may take 5-15 minutes...', 'warning');
+                    }
+                }, 30000); // 30 second warning
+
+                const response = await fetch('/summarize', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: url }),
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                // Check for stop after request
+                if (shouldStop) {
+                    controller.abort();
+                    addLog('🛑 Request aborted', 'warning');
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    updateProgressStep(3);
+                    addLog('✅ Transcription complete!', 'success');
+                    addLog('🤖 Generating AI summary with BART...', 'info');
+                    
+                    setTimeout(() => {
+                        if (shouldStop) return;
+                        addLog('✅ Summary generation complete!', 'success');
+                        addLog(`📊 Processed ${data.stats.transcript_words} words`, 'success');
+                        addLog('🎉 All done! Displaying results...', 'success');
+                    }, 500);
+
+                    // Display results
+                    const videoInfo = data.video_info;
+                    const durationMinutes = Math.floor(videoInfo.duration / 60);
+                    const durationSeconds = videoInfo.duration % 60;
+                    
+                    // Warning for long videos
+                    if (videoInfo.duration > 1800) { // 30 minutes
+                        addLog('⚠️  Note: Long video processed. Summary might be condensed.', 'warning');
+                    }
+
+                    document.getElementById('videoInfo').innerHTML = `
+                        <h3>🎥 ${videoInfo.title}</h3>
+                        <p><strong>👤 Channel:</strong> ${videoInfo.uploader}</p>
+                        <p><strong>⏱️  Duration:</strong> ${durationMinutes}:${durationSeconds.toString().padStart(2, '0')} ${videoInfo.duration > 600 ? '<span style="color: #f59e0b;">⚠️  Long video</span>' : ''}</p>
+                        <p><strong>👁️  Views:</strong> ${videoInfo.view_count?.toLocaleString() || 'N/A'}</p>
+                    `;
+
+                    const stats = data.stats;
+                    document.getElementById('statsSection').innerHTML = `
+                        <div class="stat-card">
+                            <div class="number">${stats.transcript_words}</div>
+                            <div class="label">Transcript Words</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="number">${stats.summary_words}</div>
+                            <div class="label">Summary Words</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="number">${stats.compression_ratio}</div>
+                            <div class="label">Compression Rate</div>
+                        </div>
+                    `;
+
+                    document.getElementById('summaryText').textContent = data.summary;
+                    document.getElementById('transcriptText').textContent = data.transcript;
+
+                    // Mark all steps complete
+                    for (let i = 1; i <= 3; i++) {
+                        document.getElementById(`step${i}`).classList.add('completed');
+                        document.getElementById(`step${i}`).classList.remove('active');
+                    }
+                    document.getElementById('progressFill').style.width = '100%';
+
+                    setTimeout(() => {
+                        if (shouldStop) return;
+                        document.getElementById('resultsSection').classList.add('active');
+                        progressTracker.classList.remove('active');
+                    }, 1000);
+                } else {
+                    // Handle different error types
+                    const errorMsg = data.error || 'Processing failed';
+                    
+                    if (errorMsg.includes('Invalid') || errorMsg.includes('URL')) {
+                        showError('Invalid YouTube URL or video not accessible. Try another video.');
+                        addLog('❌ URL validation failed on server', 'error');
+                    } else if (errorMsg.includes('download')) {
+                        showError('Failed to download video. Video might be private or geo-restricted.');
+                        addLog('❌ Download failed - check video accessibility', 'error');
+                    } else if (errorMsg.includes('transcribe')) {
+                        showError('Transcription failed. Video might have no audio or unclear speech.');
+                        addLog('❌ Transcription error', 'error');
+                    } else {
+                        showError(errorMsg);
+                        addLog(`❌ ${errorMsg}`, 'error');
+                    }
+                    
+                    // Suggest solutions
+                    addLog('💡 Try: Shorter video, different video, or check internet connection', 'info');
+                }
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    addLog('🛑 Request was cancelled', 'warning');
+                    showWarning('Processing stopped by user');
+                } else {
+                    showError('Network error: ' + error.message);
+                    addLog(`❌ Network error: ${error.message}`, 'error');
+                    addLog('💡 Check your internet connection and try again', 'info');
+                }
+                console.error('Error:', error);
+            } finally {
+                isProcessing = false;
+                summarizeBtn.disabled = false;
+                summarizeBtn.style.display = 'inline-block';
+                stopBtn.style.display = 'none';
+            }
+        }
+
+        function copyToClipboard(elementId) {
+            const text = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('✅ Copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        }
+
+        document.getElementById('youtubeUrl').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                summarizeVideo();
+            }
+        });
+    </script>
+</body>
+</html>
